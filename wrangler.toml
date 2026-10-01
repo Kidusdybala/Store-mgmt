@@ -1,0 +1,6 @@
+name = "ir-inventory-mgmt-bot"
+main = "src/index.js"
+compatibility_date = "2023-10-01"
+
+[vars]
+SECRET_TELEGRAM_API_TOKEN = "8837496349:AAHN1uejj6yeiqqTbiawtNxOrifkraZctdU"
