@@ -30,7 +30,7 @@ export default {
             }
           }
           
-          await this.sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
+          await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
         }
       } catch (err) {
         console.error("Error handling request", err);
@@ -39,19 +39,19 @@ export default {
     
     // Always return a 200 OK so Telegram doesn't retry the message endlessly
     return new Response("OK");
-  },
-
-  async sendMessage(token, chatId, text) {
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text
-      })
-    });
   }
 };
+
+async function sendMessage(token, chatId, text) {
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text
+    })
+  });
+}
