@@ -13,17 +13,19 @@ export default {
           let replyText = "";
           
           if (data === "action_list") {
-            replyText = "Your inventory is currently empty. (Database integration pending)";
+            const { results } = await env.DB.prepare("SELECT * FROM inventory").all();
+            if (!results || results.length === 0) {
+              replyText = "Your inventory is empty.";
+            } else {
+              replyText = "Current Inventory:\n" + results.map(row => `- ${row.name}: ${row.quantity}`).join("\n");
+            }
           } else if (data === "action_add") {
-            replyText = "To add an item, simply type:\n/add <item_name>\n\nExample: /add Laptops";
+            replyText = "To add an item, type:\n/add <item_name>\n\nExample: /add Laptops";
           } else if (data === "action_remove") {
-            replyText = "To remove an item, simply type:\n/remove <item_name>\n\nExample: /remove Laptops";
+            replyText = "To remove an item, type:\n/remove <item_name>\n\nExample: /remove Laptops";
           }
           
-          // Send response message back to the user
           await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
-          
-          // Acknowledge the callback query so the loading spinner stops on the button
           await answerCallbackQuery(env.SECRET_TELEGRAM_API_TOKEN, callbackQueryId);
         } 
         // Handle Text Messages
@@ -33,8 +35,6 @@ export default {
           
           if (text.startsWith("/start") || text.startsWith("/help")) {
             const replyText = "Welcome to IR Inventory Mgmt Bot!\n\nWhat would you like to do?";
-            
-            // Define our inline keyboard with buttons
             const keyboard = {
               inline_keyboard: [
                 [{ text: "List Inventory", callback_data: "action_list" }],
@@ -44,22 +44,58 @@ export default {
                 ]
               ]
             };
-            
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText, keyboard);
           } 
+          else if (text.startsWith("/list")) {
+            const { results } = await env.DB.prepare("SELECT * FROM inventory").all();
+            let replyText = "Your inventory is empty.";
+            if (results && results.length > 0) {
+              replyText = "Current Inventory:\n" + results.map(row => `- ${row.name}: ${row.quantity}`).join("\n");
+            }
+            await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
+          }
           else if (text.startsWith("/add")) {
             const item = text.replace("/add", "").trim();
-            const replyText = item ? `Added "${item}" to inventory! (Mocked)` : "Please specify an item to add. Example: /add Laptops";
-            await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
+            if (item) {
+              // Insert or update quantity if it already exists
+              await env.DB.prepare(`
+                INSERT INTO inventory (name, quantity) 
+                VALUES (?, 1) 
+                ON CONFLICT(name) DO UPDATE SET quantity = quantity + 1
+              `).bind(item).run();
+              
+              const { results } = await env.DB.prepare("SELECT quantity FROM inventory WHERE name = ?").bind(item).all();
+              const newQty = results[0].quantity;
+              
+              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, `Added! You now have ${newQty}x "${item}" in stock.`);
+            } else {
+              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, "Please specify an item to add. Example: /add Laptops");
+            }
           } 
           else if (text.startsWith("/remove")) {
             const item = text.replace("/remove", "").trim();
-            const replyText = item ? `Removed "${item}" from inventory! (Mocked)` : "Please specify an item to remove. Example: /remove Laptops";
-            await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
+            if (item) {
+              // Check current quantity
+              const { results } = await env.DB.prepare("SELECT quantity FROM inventory WHERE name = ?").bind(item).all();
+              
+              if (!results || results.length === 0) {
+                await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, `Error: "${item}" is not in the inventory.`);
+              } else {
+                const currentQty = results[0].quantity;
+                if (currentQty > 1) {
+                  await env.DB.prepare("UPDATE inventory SET quantity = quantity - 1 WHERE name = ?").bind(item).run();
+                  await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, `Removed 1 "${item}". Remaining: ${currentQty - 1}`);
+                } else {
+                  await env.DB.prepare("DELETE FROM inventory WHERE name = ?").bind(item).run();
+                  await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, `Removed the last "${item}". It is now out of stock.`);
+                }
+              }
+            } else {
+              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, "Please specify an item to remove. Example: /remove Laptops");
+            }
           } 
           else {
-             const replyText = "I didn't understand that command. Use /help to see available options.";
-             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
+             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, "I didn't understand that command. Use /help to see available options.");
           }
         }
       } catch (err) {
@@ -67,7 +103,6 @@ export default {
       }
     }
     
-    // Always return a 200 OK so Telegram doesn't retry the message endlessly
     return new Response("OK");
   }
 };
