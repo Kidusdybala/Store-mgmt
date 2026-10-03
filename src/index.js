@@ -41,6 +41,22 @@ export default {
           } else if (data === "action_remove") {
             await setSession("REMOVE_NAME", {});
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, "What is the name of the item you want to remove?");
+          } else if (data === "action_reports") {
+            const { results } = await env.DB.prepare("SELECT site, name, model, SUM(quantity) as total_qty FROM transactions WHERE action = 'REMOVE' AND site IS NOT NULL GROUP BY site, name, model ORDER BY site ASC").all();
+            
+            let replyText = "No items have been sent to any sites yet.";
+            if (results && results.length > 0) {
+              replyText = "Site Reports (Items Sent):\n\n";
+              let currentSite = "";
+              for (const row of results) {
+                if (currentSite !== row.site) {
+                  currentSite = row.site;
+                  replyText += `📍 Site: ${currentSite}\n`;
+                }
+                replyText += `   - ${row.name} (Model: ${row.model}): ${row.total_qty}\n`;
+              }
+            }
+            await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
           }
           await answerCallbackQuery(env.SECRET_TELEGRAM_API_TOKEN, callbackQueryId);
           return new Response("OK");
@@ -59,7 +75,8 @@ export default {
                 [
                   { text: "Add Item", callback_data: "action_add" },
                   { text: "Remove Item", callback_data: "action_remove" }
-                ]
+                ],
+                [{ text: "Site Reports", callback_data: "action_reports" }]
               ]
             };
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText, keyboard);
