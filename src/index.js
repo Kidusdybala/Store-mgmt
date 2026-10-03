@@ -13,7 +13,7 @@ const i18n = {
     ask_model: (name) => `Got it. What is the model for "${name}"?`,
     ask_add_qty: (model) => `Model set to "${model}". How many are you adding? (Enter a number)`,
     invalid_number: "Please enter a valid positive number.",
-    success_add: (qty, name, model) => `✅ Successfully added ${qty}x ${name} (Model: ${model}) to the inventory!`,
+    success_add: (qty, name, model) => `✅ We have successfully received ${qty}x ${name} (Model: ${model}) into inventory!`,
     err_not_in_stock: (name, model) => `❌ Error: You don't have any ${name} (Model: ${model}) in stock. Process cancelled.`,
     ask_remove_qty: (max) => `You currently have ${max} in stock. How many do you want to remove? (Enter a number)`,
     err_not_enough: (max) => `You only have ${max} in stock. Please enter a smaller number.`,
@@ -39,7 +39,7 @@ const i18n = {
     ask_model: (name) => `ገብቶኛል። ሞዴሉ ምንድነው ለ "${name}"?`,
     ask_add_qty: (model) => `ሞዴል "${model}" ተመዝግቧል። ስንት እያሰገቡ ነው? (ቁጥር ያስገቡ)`,
     invalid_number: "እባክዎ ትክክለኛ አዎንታዊ ቁጥር ያስገቡ።",
-    success_add: (qty, name, model) => `✅ በተሳካ ሁኔታ ${qty}x ${name} (ሞዴል: ${model}) ገብቷል!`,
+    success_add: (qty, name, model) => `✅ ${qty}x ${name} (ሞዴል: ${model}) በተሳካ ሁኔታ ተቀብለናል!`,
     err_not_in_stock: (name, model) => `❌ ስህተት፡ ምንም ${name} (ሞዴል: ${model}) የለዎትም። ሂደት ተቋርጧል።`,
     ask_remove_qty: (max) => `አሁን ${max} ክምችት አለዎት። ስንት ማውጣት ይፈልጋሉ? (ቁጥር ያስገቡ)`,
     err_not_enough: (max) => `${max} ክምችት ብቻ ነው ያለዎት። ትንሽ ቁጥር ያስገቡ።`,
@@ -193,7 +193,7 @@ export default {
             else if (step === "ADD_MODEL") {
               data.model = text;
               await setSession("ADD_QTY", data);
-              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_add_qty(text));
+              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_add_qty(data.model));
             } 
             else if (step === "ADD_QTY") {
               const qty = parseInt(text, 10);

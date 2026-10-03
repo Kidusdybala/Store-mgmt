@@ -1,9 +1,12 @@
+DROP TABLE IF EXISTS inventory;
+DROP TABLE IF EXISTS transactions;
+
 CREATE TABLE IF NOT EXISTS users (
   chat_id INTEGER PRIMARY KEY,
   language TEXT DEFAULT 'en'
 );
 
-CREATE TABLE IF NOT EXISTS inventory (
+CREATE TABLE inventory (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   model TEXT NOT NULL,
@@ -11,7 +14,7 @@ CREATE TABLE IF NOT EXISTS inventory (
   UNIQUE(name, model)
 );
 
-CREATE TABLE IF NOT EXISTS transactions (
+CREATE TABLE transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   model TEXT NOT NULL,
