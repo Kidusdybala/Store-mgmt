@@ -4,3 +4,8 @@ compatibility_date = "2023-10-01"
 
 [vars]
 SECRET_TELEGRAM_API_TOKEN = "8837496349:AAHN1uejj6yeiqqTbiawtNxOrifkraZctdU"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "inventory-db"
+database_id = "45b7957b-38b0-4770-90a2-76b5a760530f"
