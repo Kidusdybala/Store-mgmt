@@ -32,15 +32,15 @@ export default {
           const text = payload.message.text.trim();
           
           if (text.startsWith("/start") || text.startsWith("/help")) {
-            const replyText = "Welcome to IR Inventory Mgmt Bot! 📦\n\nWhat would you like to do?";
+            const replyText = "Welcome to IR Inventory Mgmt Bot!\n\nWhat would you like to do?";
             
             // Define our inline keyboard with buttons
             const keyboard = {
               inline_keyboard: [
-                [{ text: "📦 List Inventory", callback_data: "action_list" }],
+                [{ text: "List Inventory", callback_data: "action_list" }],
                 [
-                  { text: "➕ Add Item", callback_data: "action_add" },
-                  { text: "➖ Remove Item", callback_data: "action_remove" }
+                  { text: "Add Item", callback_data: "action_add" },
+                  { text: "Remove Item", callback_data: "action_remove" }
                 ]
               ]
             };
