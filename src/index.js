@@ -13,12 +13,12 @@ const i18n = {
     ask_model: (name) => `Got it. What is the model for "${name}"?`,
     ask_add_qty: (model) => `Model set to "${model}". How many are you adding? (Enter a number)`,
     invalid_number: "Please enter a valid positive number.",
-    success_add: (qty, name, model) => `✅ We have successfully received ${qty}x ${name} (Model: ${model}) into inventory!`,
-    err_not_in_stock: (name, model) => `❌ Error: You don't have any ${name} (Model: ${model}) in stock. Process cancelled.`,
+    success_add: (qty, name, model) => `We have successfully received ${qty}x ${name} (Model: ${model}) into inventory!`,
+    err_not_in_stock: (name, model) => `Error: You don't have any ${name} (Model: ${model}) in stock. Process cancelled.`,
     ask_remove_qty: (max) => `You currently have ${max} in stock. How many do you want to remove? (Enter a number)`,
     err_not_enough: (max) => `You only have ${max} in stock. Please enter a smaller number.`,
     ask_site: "Where is this item going? (Enter the site name)",
-    success_remove: (qty, name, model, site) => `✅ Successfully sent ${qty}x ${name} (Model: ${model}) to ${site}!`,
+    success_remove: (qty, name, model, site) => `Successfully sent ${qty}x ${name} (Model: ${model}) to ${site}!`,
     no_reports: "No items have been sent to any sites yet.",
     site_reports: "Site Reports (Items Sent):\n\n",
     site_label: "Site",
@@ -39,12 +39,12 @@ const i18n = {
     ask_model: (name) => `ገብቶኛል። ሞዴሉ ምንድነው ለ "${name}"?`,
     ask_add_qty: (model) => `ሞዴል "${model}" ተመዝግቧል። ስንት እያሰገቡ ነው? (ቁጥር ያስገቡ)`,
     invalid_number: "እባክዎ ትክክለኛ አዎንታዊ ቁጥር ያስገቡ።",
-    success_add: (qty, name, model) => `✅ ${qty}x ${name} (ሞዴል: ${model}) በተሳካ ሁኔታ ተቀብለናል!`,
-    err_not_in_stock: (name, model) => `❌ ስህተት፡ ምንም ${name} (ሞዴል: ${model}) የለዎትም። ሂደት ተቋርጧል።`,
+    success_add: (qty, name, model) => `${qty}x ${name} (ሞዴል: ${model}) በተሳካ ሁኔታ ተቀብለናል!`,
+    err_not_in_stock: (name, model) => `ስህተት፡ ምንም ${name} (ሞዴል: ${model}) የለዎትም። ሂደት ተቋርጧል።`,
     ask_remove_qty: (max) => `አሁን ${max} ክምችት አለዎት። ስንት ማውጣት ይፈልጋሉ? (ቁጥር ያስገቡ)`,
     err_not_enough: (max) => `${max} ክምችት ብቻ ነው ያለዎት። ትንሽ ቁጥር ያስገቡ።`,
     ask_site: "ይህ እቃ የት ነው የሚሄደው? (የሳይቱን ስም ያስገቡ)",
-    success_remove: (qty, name, model, site) => `✅ በተሳካ ሁኔታ ${qty}x ${name} (ሞዴል: ${model}) ወደ ${site} ተልኳል!`,
+    success_remove: (qty, name, model, site) => `በተሳካ ሁኔታ ${qty}x ${name} (ሞዴል: ${model}) ወደ ${site} ተልኳል!`,
     no_reports: "ምንም እቃ ወደ ሳይት አልተላከም።",
     site_reports: "የሳይት ሪፖርቶች (የተላኩ እቃዎች)፡\n\n",
     site_label: "ሳይት",
@@ -100,7 +100,7 @@ export default {
                 { text: trans.btn_remove, callback_data: "action_remove" }
               ],
               [{ text: trans.btn_reports, callback_data: "action_reports" }],
-              [{ text: "🌐 Change Language / ቋንቋ ቀይር", callback_data: "action_lang" }]
+              [{ text: "Change Language / ቋንቋ ቀይር", callback_data: "action_lang" }]
             ]
           };
           await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, trans.welcome, keyboard);
@@ -146,7 +146,7 @@ export default {
               for (const row of results) {
                 if (currentSite !== row.site) {
                   currentSite = row.site;
-                  replyText += `📍 ${t.site_label}: ${currentSite}\n`;
+                  replyText += `${t.site_label}: ${currentSite}\n`;
                 }
                 replyText += `   - ${row.name} (${row.model}): ${row.total_qty}\n`;
               }
