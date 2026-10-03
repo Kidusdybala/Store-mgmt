@@ -1,0 +1,38 @@
+Starting npm install... 
+
+up to date, audited 59 packages in 2s
+
+5 packages are looking for funding
+  run `npm fund` for details
+
+7 vulnerabilities (2 moderate, 5 high)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+Finished npm install. Starting npm run deploy... 
+
+> ir-inventory-mgmt-bot@1.0.0 deploy
+> wrangler deploy
+
+
+ ⛅️ wrangler 3.114.17 (update available 4.147.0)
+------------------------------------------------
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mThe version of Wrangler you are using is now out-of-date.[0m
+
+  Please update to the latest version to prevent critical errors.
+  Run `npm install --save-dev wrangler@4` to update to the latest version.
+  After installation, run Wrangler with `npx wrangler`.
+
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mIn a non-interactive environment, it's necessary to set a CLOUDFLARE_API_TOKEN environment variable for wrangler to work. Please go to https://developers.cloudflare.com/fundamentals/api/get-started/create-token/ for instructions on how to create an api token, and assign its value to CLOUDFLARE_API_TOKEN.[0m
+
+
+
+Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+🪵  Logs were written to "C:\Users\user\AppData\Roaming\xdg.config\.wrangler\logs\wrangler-2026-10-03_09-20-48_735.log"
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 94
+Done. 
