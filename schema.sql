@@ -1,6 +1,9 @@
-DROP TABLE IF EXISTS inventory;
+CREATE TABLE IF NOT EXISTS users (
+  chat_id INTEGER PRIMARY KEY,
+  language TEXT DEFAULT 'en'
+);
 
-CREATE TABLE inventory (
+CREATE TABLE IF NOT EXISTS inventory (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   model TEXT NOT NULL,
@@ -8,7 +11,7 @@ CREATE TABLE inventory (
   UNIQUE(name, model)
 );
 
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   model TEXT NOT NULL,
@@ -18,7 +21,7 @@ CREATE TABLE transactions (
   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   chat_id INTEGER PRIMARY KEY,
   step TEXT,
   data TEXT -- Stores JSON data temporarily during the conversation
