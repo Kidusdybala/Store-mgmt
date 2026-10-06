@@ -247,6 +247,7 @@ export default {
               ).bind(data.name, data.model, qty).run();
               await clearSession();
               await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.success_add(qty, data.name, data.model));
+              await showMenu(langCode);
             }
 
             // --- REMOVE FLOW (after item selected via button) ---
@@ -291,6 +292,7 @@ export default {
               ).bind(data.name, data.model, data.qty, site).run();
               await clearSession();
               await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.success_remove(data.qty, data.name, data.model, site));
+              await showMenu(langCode);
             }
 
             return new Response("OK");
