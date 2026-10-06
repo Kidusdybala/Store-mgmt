@@ -11,12 +11,13 @@ const i18n = {
     ask_add_name: "What is the name of the item you want to add?",
     ask_model: (name) => `Got it. What is the model for "${name}"?`,
     ask_add_qty: (model) => `Model set to "${model}". How many are you adding? (Enter a number)`,
-    invalid_number: "Please enter a valid positive number.",
+    invalid_number: "Invalid input. Please enter a valid positive number.",
     success_add: (qty, name, model) => `We have successfully received ${qty}x ${name} (Model: ${model}) into inventory!`,
     select_item_remove: "Select an item from inventory to remove:",
-    no_items_to_remove: "There are no items in stock to remove.",
-    ask_remove_qty: (name, model, max) => `You selected: ${name} (Model: ${model})\nIn stock: ${max}\n\nHow many do you want to remove? (Enter a number)`,
-    err_not_enough: (max) => `You only have ${max} in stock. Please enter a smaller number.`,
+    no_items_to_remove: "There are no items currently in stock. Nothing can be removed.",
+    ask_remove_qty: (name, model, max) => `You selected: ${name} (Model: ${model})\nAvailable in store: ${max}\n\nHow many do you want to remove?`,
+    err_not_enough: (requested, max) => `Cannot remove ${requested}. Only ${max} available in store. Please enter a number between 1 and ${max}.`,
+    err_stock_changed: "The stock level changed while you were processing. Please start again.",
     ask_site: "Where is this item going? (Enter the site name)",
     success_remove: (qty, name, model, site) => `Successfully sent ${qty}x ${name} (Model: ${model}) to ${site}!`,
     no_reports: "No items have been sent to any sites yet.",
@@ -37,12 +38,13 @@ const i18n = {
     ask_add_name: "ማስገባት የሚፈልጉት እቃ ስም ማን ይባላል?",
     ask_model: (name) => `ገብቶኛል። ሞዴሉ ምንድነው ለ "${name}"?`,
     ask_add_qty: (model) => `ሞዴል "${model}" ተመዝግቧል። ስንት እያሰገቡ ነው? (ቁጥር ያስገቡ)`,
-    invalid_number: "እባክዎ ትክክለኛ አዎንታዊ ቁጥር ያስገቡ።",
+    invalid_number: "ትክክል ያልሆነ ቁጥር። እባክዎ አዎንታዊ ቁጥር ያስገቡ።",
     success_add: (qty, name, model) => `${qty}x ${name} (ሞዴል: ${model}) በተሳካ ሁኔታ ተቀብለናል!`,
     select_item_remove: "ማውጣት የሚፈልጉትን እቃ ይምረጡ፡",
-    no_items_to_remove: "ምንም እቃ ክምችት ውስጥ የለም።",
-    ask_remove_qty: (name, model, max) => `የመረጡት: ${name} (ሞዴል: ${model})\nክምችት: ${max}\n\nስንት ማውጣት ይፈልጋሉ? (ቁጥር ያስገቡ)`,
-    err_not_enough: (max) => `${max} ክምችት ብቻ ነው ያለዎት። ትንሽ ቁጥር ያስገቡ።`,
+    no_items_to_remove: "አሁን ምንም እቃ ክምችት ውስጥ የለም። ምንም ማውጣት አይቻልም።",
+    ask_remove_qty: (name, model, max) => `የመረጡት: ${name} (ሞዴል: ${model})\nበክምችት ውስጥ ያለ: ${max}\n\nስንት ማውጣት ይፈልጋሉ?`,
+    err_not_enough: (requested, max) => `${requested} ማውጣት አይቻልም። በክምችት ውስጥ ${max} ብቻ አለ። ከ 1 እስከ ${max} ቁጥር ያስገቡ።`,
+    err_stock_changed: "ክምችቱ ሲሰሩ ተቀይሯል። እባክዎ እንደገና ይጀምሩ።",
     ask_site: "ይህ እቃ የት ነው የሚሄደው? (የሳይቱን ስም ያስገቡ)",
     success_remove: (qty, name, model, site) => `በተሳካ ሁኔታ ${qty}x ${name} (ሞዴል: ${model}) ወደ ${site} ተልኳል!`,
     no_reports: "ምንም እቃ ወደ ሳይት አልተላከም።",
@@ -255,7 +257,7 @@ export default {
                 return new Response("OK");
               }
               if (qty > data.maxQty) {
-                await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.err_not_enough(data.maxQty));
+                await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.err_not_enough(qty, data.maxQty));
                 return new Response("OK");
               }
               data.qty = qty;
@@ -264,6 +266,23 @@ export default {
             }
             else if (step === "REMOVE_SITE") {
               const site = text;
+
+              // Final re-check: make sure stock hasn't changed since user started
+              const { results: freshStock } = await env.DB.prepare(
+                "SELECT quantity FROM inventory WHERE id = ?"
+              ).bind(data.id).all();
+
+              if (!freshStock || freshStock.length === 0 || freshStock[0].quantity < data.qty) {
+                await clearSession();
+                const available = freshStock?.[0]?.quantity ?? 0;
+                if (available === 0) {
+                  await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.no_items_to_remove);
+                } else {
+                  await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.err_not_enough(data.qty, available));
+                }
+                return new Response("OK");
+              }
+
               await env.DB.prepare(
                 "UPDATE inventory SET quantity = quantity - ? WHERE id = ?"
               ).bind(data.qty, data.id).run();
