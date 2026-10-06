@@ -9,13 +9,13 @@ const i18n = {
     empty_inventory: "Your inventory is empty.",
     current_inventory: "Current Inventory:\n\n",
     ask_add_name: "What is the name of the item you want to add?",
-    ask_remove_name: "What is the name of the item you want to remove?",
     ask_model: (name) => `Got it. What is the model for "${name}"?`,
     ask_add_qty: (model) => `Model set to "${model}". How many are you adding? (Enter a number)`,
     invalid_number: "Please enter a valid positive number.",
     success_add: (qty, name, model) => `We have successfully received ${qty}x ${name} (Model: ${model}) into inventory!`,
-    err_not_in_stock: (name, model) => `Error: You don't have any ${name} (Model: ${model}) in stock. Process cancelled.`,
-    ask_remove_qty: (max) => `You currently have ${max} in stock. How many do you want to remove? (Enter a number)`,
+    select_item_remove: "Select an item from inventory to remove:",
+    no_items_to_remove: "There are no items in stock to remove.",
+    ask_remove_qty: (name, model, max) => `You selected: ${name} (Model: ${model})\nIn stock: ${max}\n\nHow many do you want to remove? (Enter a number)`,
     err_not_enough: (max) => `You only have ${max} in stock. Please enter a smaller number.`,
     ask_site: "Where is this item going? (Enter the site name)",
     success_remove: (qty, name, model, site) => `Successfully sent ${qty}x ${name} (Model: ${model}) to ${site}!`,
@@ -35,13 +35,13 @@ const i18n = {
     empty_inventory: "ማከማቻዎ ባዶ ነው።",
     current_inventory: "አሁን ያለ እቃ፡\n\n",
     ask_add_name: "ማስገባት የሚፈልጉት እቃ ስም ማን ይባላል?",
-    ask_remove_name: "ማውጣት የሚፈልጉት እቃ ስም ማን ይባላል?",
     ask_model: (name) => `ገብቶኛል። ሞዴሉ ምንድነው ለ "${name}"?`,
     ask_add_qty: (model) => `ሞዴል "${model}" ተመዝግቧል። ስንት እያሰገቡ ነው? (ቁጥር ያስገቡ)`,
     invalid_number: "እባክዎ ትክክለኛ አዎንታዊ ቁጥር ያስገቡ።",
     success_add: (qty, name, model) => `${qty}x ${name} (ሞዴል: ${model}) በተሳካ ሁኔታ ተቀብለናል!`,
-    err_not_in_stock: (name, model) => `ስህተት፡ ምንም ${name} (ሞዴል: ${model}) የለዎትም። ሂደት ተቋርጧል።`,
-    ask_remove_qty: (max) => `አሁን ${max} ክምችት አለዎት። ስንት ማውጣት ይፈልጋሉ? (ቁጥር ያስገቡ)`,
+    select_item_remove: "ማውጣት የሚፈልጉትን እቃ ይምረጡ፡",
+    no_items_to_remove: "ምንም እቃ ክምችት ውስጥ የለም።",
+    ask_remove_qty: (name, model, max) => `የመረጡት: ${name} (ሞዴል: ${model})\nክምችት: ${max}\n\nስንት ማውጣት ይፈልጋሉ? (ቁጥር ያስገቡ)`,
     err_not_enough: (max) => `${max} ክምችት ብቻ ነው ያለዎት። ትንሽ ቁጥር ያስገቡ።`,
     ask_site: "ይህ እቃ የት ነው የሚሄደው? (የሳይቱን ስም ያስገቡ)",
     success_remove: (qty, name, model, site) => `በተሳካ ሁኔታ ${qty}x ${name} (ሞዴል: ${model}) ወደ ${site} ተልኳል!`,
@@ -61,12 +61,11 @@ export default {
         const chatId = payload.message?.chat?.id || payload.callback_query?.message?.chat?.id;
         if (!chatId) return new Response("OK");
 
-        // Helper to get user language
+        // Language helpers
         const getUserLang = async () => {
           const { results } = await env.DB.prepare("SELECT language FROM users WHERE chat_id = ?").bind(chatId).all();
           return (results && results.length > 0) ? results[0].language : null;
         };
-
         const setUserLang = async (lang) => {
           await env.DB.prepare(
             "INSERT INTO users (chat_id, language) VALUES (?, ?) ON CONFLICT(chat_id) DO UPDATE SET language = ?"
@@ -106,11 +105,28 @@ export default {
           await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, trans.welcome, keyboard);
         };
 
+        // Show inventory as buttons for removal
+        const showInventoryButtons = async () => {
+          const { results } = await env.DB.prepare("SELECT * FROM inventory WHERE quantity > 0 ORDER BY name ASC").all();
+          if (!results || results.length === 0) {
+            await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.no_items_to_remove);
+            return;
+          }
+          // Build inline keyboard - each item is a button showing name, model, qty
+          // Store item id in callback_data for precise selection
+          const rows = results.map(row => ([{
+            text: `${row.name} | ${row.model} | Qty: ${row.quantity}`,
+            callback_data: `remove_item:${row.id}`
+          }]));
+          const keyboard = { inline_keyboard: rows };
+          await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.select_item_remove, keyboard);
+        };
+
         // Handle Callbacks
         if (payload.callback_query) {
           const callbackQueryId = payload.callback_query.id;
           const data = payload.callback_query.data;
-          
+
           if (data === "action_lang_en") {
             await setUserLang("en");
             await showMenu("en");
@@ -124,21 +140,42 @@ export default {
               ]
             };
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, "Choose Language / ቋንቋ ይምረጡ", kb);
+
           } else if (data === "action_list") {
-            const { results } = await env.DB.prepare("SELECT * FROM inventory").all();
+            const { results } = await env.DB.prepare("SELECT * FROM inventory WHERE quantity > 0 ORDER BY name ASC").all();
             let replyText = t.empty_inventory;
             if (results && results.length > 0) {
               replyText = t.current_inventory + results.map(row => `- ${row.name} (${row.model}) | ${t.qty}: ${row.quantity}`).join("\n");
             }
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
+
           } else if (data === "action_add") {
+            await clearSession();
             await setSession("ADD_NAME", {});
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_add_name);
+
           } else if (data === "action_remove") {
-            await setSession("REMOVE_NAME", {});
-            await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_remove_name);
+            await clearSession();
+            // Show all in-stock items as buttons
+            await showInventoryButtons();
+
+          } else if (data.startsWith("remove_item:")) {
+            // User tapped an inventory item button
+            const itemId = parseInt(data.split(":")[1], 10);
+            const { results } = await env.DB.prepare("SELECT * FROM inventory WHERE id = ? AND quantity > 0").bind(itemId).all();
+
+            if (!results || results.length === 0) {
+              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.no_items_to_remove);
+            } else {
+              const item = results[0];
+              await setSession("REMOVE_QTY", { id: item.id, name: item.name, model: item.model, maxQty: item.quantity });
+              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_remove_qty(item.name, item.model, item.quantity));
+            }
+
           } else if (data === "action_reports") {
-            const { results } = await env.DB.prepare("SELECT site, name, model, SUM(quantity) as total_qty FROM transactions WHERE action = 'REMOVE' AND site IS NOT NULL GROUP BY site, name, model ORDER BY site ASC").all();
+            const { results } = await env.DB.prepare(
+              "SELECT site, name, model, SUM(quantity) as total_qty FROM transactions WHERE action = 'REMOVE' AND site IS NOT NULL GROUP BY site, name, model ORDER BY site ASC"
+            ).all();
             let replyText = t.no_reports;
             if (results && results.length > 0) {
               replyText = t.site_reports;
@@ -153,10 +190,11 @@ export default {
             }
             await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, replyText);
           }
+
           await answerCallbackQuery(env.SECRET_TELEGRAM_API_TOKEN, callbackQueryId);
           return new Response("OK");
         }
-        
+
         // Handle Text Messages
         if (payload.message && payload.message.text) {
           const text = payload.message.text.trim();
@@ -164,9 +202,7 @@ export default {
 
           if (text.startsWith("/start") || text.startsWith("/help") || text === "/cancel") {
             await clearSession();
-            
             if (!userLangObj) {
-              // Ask for language on first start
               const kb = {
                 inline_keyboard: [
                   [{ text: "English", callback_data: "action_lang_en" }, { text: "አማርኛ", callback_data: "action_lang_am" }]
@@ -179,50 +215,39 @@ export default {
             return new Response("OK");
           }
 
-          // Check if user is in a session
           const session = await getSession();
-          
+
           if (session) {
             const { step, data } = session;
 
+            // --- ADD FLOW ---
             if (step === "ADD_NAME") {
               data.name = text;
               await setSession("ADD_MODEL", data);
               await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_model(text));
-            } 
+            }
             else if (step === "ADD_MODEL") {
               data.model = text;
               await setSession("ADD_QTY", data);
               await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_add_qty(data.model));
-            } 
+            }
             else if (step === "ADD_QTY") {
               const qty = parseInt(text, 10);
               if (isNaN(qty) || qty <= 0) {
                 await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.invalid_number);
                 return new Response("OK");
               }
-              await env.DB.prepare(`INSERT INTO inventory (name, model, quantity) VALUES (?, ?, ?) ON CONFLICT(name, model) DO UPDATE SET quantity = quantity + ?`).bind(data.name, data.model, qty, qty).run();
-              await env.DB.prepare(`INSERT INTO transactions (name, model, quantity, action) VALUES (?, ?, ?, 'ADD')`).bind(data.name, data.model, qty).run();
+              await env.DB.prepare(
+                "INSERT INTO inventory (name, model, quantity) VALUES (?, ?, ?) ON CONFLICT(name, model) DO UPDATE SET quantity = quantity + ?"
+              ).bind(data.name, data.model, qty, qty).run();
+              await env.DB.prepare(
+                "INSERT INTO transactions (name, model, quantity, action) VALUES (?, ?, ?, 'ADD')"
+              ).bind(data.name, data.model, qty).run();
               await clearSession();
               await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.success_add(qty, data.name, data.model));
             }
-            else if (step === "REMOVE_NAME") {
-              data.name = text;
-              await setSession("REMOVE_MODEL", data);
-              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_model(text));
-            }
-            else if (step === "REMOVE_MODEL") {
-              data.model = text;
-              const { results } = await env.DB.prepare("SELECT quantity FROM inventory WHERE name = ? AND model = ?").bind(data.name, data.model).all();
-              if (!results || results.length === 0 || results[0].quantity === 0) {
-                await clearSession();
-                await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.err_not_in_stock(data.name, data.model));
-                return new Response("OK");
-              }
-              data.maxQty = results[0].quantity;
-              await setSession("REMOVE_QTY", data);
-              await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.ask_remove_qty(data.maxQty));
-            }
+
+            // --- REMOVE FLOW (after item selected via button) ---
             else if (step === "REMOVE_QTY") {
               const qty = parseInt(text, 10);
               if (isNaN(qty) || qty <= 0) {
@@ -239,15 +264,20 @@ export default {
             }
             else if (step === "REMOVE_SITE") {
               const site = text;
-              await env.DB.prepare("UPDATE inventory SET quantity = quantity - ? WHERE name = ? AND model = ?").bind(data.qty, data.name, data.model).run();
-              await env.DB.prepare(`INSERT INTO transactions (name, model, quantity, action, site) VALUES (?, ?, ?, 'REMOVE', ?)`).bind(data.name, data.model, data.qty, site).run();
+              await env.DB.prepare(
+                "UPDATE inventory SET quantity = quantity - ? WHERE id = ?"
+              ).bind(data.qty, data.id).run();
+              await env.DB.prepare(
+                "INSERT INTO transactions (name, model, quantity, action, site) VALUES (?, ?, ?, 'REMOVE', ?)"
+              ).bind(data.name, data.model, data.qty, site).run();
               await clearSession();
               await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.success_remove(data.qty, data.name, data.model, site));
             }
+
             return new Response("OK");
           }
 
-          // Unknown command
+          // Unknown
           await sendMessage(env.SECRET_TELEGRAM_API_TOKEN, chatId, t.unknown);
         }
       } catch (err) {
